@@ -23,11 +23,12 @@ module.exports = grammar({
       $.code_file,
     ),
 
+    character: _ => /[^"]/,
     identifier: _ => /[a-zA-Z_]+/,
     integer: _ => /\d+/,
     double: _ => /\d+\.\d+/,
-    char: _ => /[a-zA-Z]/,
-    string: $ => repeat($.char),
+    char: $ => seq('\'', optional('\\'), $.character, '\''),
+    string: $ => seq('"', repeat($.character), '"'),
     operator: _ => choice(
       '||',
       '&&',
@@ -84,8 +85,8 @@ module.exports = grammar({
     ),
 
     constructor: $ => choice(
-      seq($.type, $.class_record_init),
-      seq($.type, $.array_init),
+      prec.right(1, seq($.type, $.class_record_init)),
+      prec.right(1, seq($.type, $.array_init)),
       $.type,
     ),
 
@@ -132,7 +133,7 @@ module.exports = grammar({
 
     variable_declaration: $ => seq(
       $.declaration,
-      optional(seq('=', $.expr2)),
+      optional(seq('=', $.expression2)),
     ),
 
     variable_declarations: $ => seq(
@@ -151,7 +152,7 @@ module.exports = grammar({
       $.if_statement,
       $.variable_assignment,
       $.id_arglist,
-      seq(
+      prec.right(1, seq(
         $.expression,
         $.identifier,
         ':',
@@ -161,13 +162,13 @@ module.exports = grammar({
           ':',
           $.expression,
         )),
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression,
         '.',
         $.identifier,
         $.arg_list,
-      ),
+      )),
       $.while_loop,
       $.until_loop,
       'break',
@@ -302,11 +303,11 @@ module.exports = grammar({
       ']',
     ),
     
-    renaming_statement: $ => seq(
+    renaming_statement: $ => prec.right(1, seq(
       'renaming',
       $.rename_statement,
       repeat(seq(',', $.renaming_statement)),
-    ),
+    )),
 
     package_id: $ => seq(
       $.identifier,
@@ -334,24 +335,24 @@ module.exports = grammar({
       repeat(seq(',', $.other_package)),
     ),
 
-    constant_definition: $ => seq(
+    constant_definition: $ => prec.left(1,seq(
       'const',
-      repeat(seq(
+      repeat(prec.right(1,seq(
         $.identifier,
         /\s=\s/,
         $.number,
-      ))
-    ),
+      )))
+    )),
 
     variable_statement: $ => seq(
       repeat(seq($.identifier, ',')),
       $.identifier
     ),
 
-    variable_definition: $ => seq(
+    variable_definition: $ => prec.right(1, seq(
       'var',
       repeat($.variable_statement),
-    ),
+    )),
 
     type_identifier: $ => seq(
       $.identifier,
@@ -359,11 +360,11 @@ module.exports = grammar({
       $.type,
     ),
 
-    type_definition: $ => seq(
+    type_definition: $ => prec.right(1, seq(
       'type',
       seq($.identifier, '=', $.type),
       repeat(seq($.identifier, '=', $.type)),
-    ),
+    )),
 
     enum: $ => seq(
       'enum',
@@ -373,11 +374,11 @@ module.exports = grammar({
     ),
 
     arg_list: $ => choice(
-      seq('(', ')'),
-      seq(
+      prec.right(1, seq('(', ')')),
+      prec.right(1, seq(
         $.expression,
         repeat(seq(',', $.expression)),
-      ),
+      )),
     ),
 
     parameter_list: $ => choice(
@@ -393,13 +394,15 @@ module.exports = grammar({
       repeat(seq(',', $.identifier)),
     ),
 
-    error_definition: _ => seq(
-      'error_def',
-    ),
-
-    enumeration: _ => seq(
-      'enum',
-    ),
+    error_definition: $ => prec.right(1,seq(
+      'errors',
+      $.identifier,
+      $.parameter_list,
+      repeat(seq(
+        $.identifier,
+        $.parameter_list,
+      )),
+    )),
 
     function_prototype: $ => seq(
       $.identifier,
@@ -459,11 +462,11 @@ module.exports = grammar({
       ')',
     ),
 
-    identifiers_definition: $ => seq(
+    identifiers_definition: $ => prec.right(1, seq(
       $.identifier_definition,
       repeat($.identifier_definition),
       optional($.return_definition),
-    ),
+    )),
 
     method_prototype: $ => choice(
       $.parameters_definition,
@@ -528,6 +531,22 @@ module.exports = grammar({
       'endFunction'
     ),
 
+    implementation_definition: $ => seq(
+      'implements',
+      $.type_list,
+    ),
+
+    superclass_definition: $ => seq(
+      'superclass',
+      $.named_type,
+    ),
+
+    fields_definition: $ => seq(
+      'fields',
+      $.declaration,
+      repeat($.declaration),
+    ),
+
     class: $ => seq(
       'class',
       $.identifier,
@@ -562,7 +581,7 @@ module.exports = grammar({
       'endMethod',
     ),
 
-    statement_list: $ => repeat($.statement),
+    statement_list: $ => seq($.statement, repeat($.statement)),
 
     block: $ => seq(
       '{',
@@ -570,186 +589,186 @@ module.exports = grammar({
       '}'
     ),
 
-    return_statement: $ => seq(
+    return_statement: $ => prec.right(1, seq(
       'return',
       optional($.expression),
-    ),
+    )),
 
-    expression: $ => seq(
+    expression: $ => prec.right(1, seq(
       $.expression2,
-      repeat(seq($.identifier, ':', $.expression2)),
-    ),
+      repeat(prec.right(1, seq($.identifier, ':', $.expression2))),
+    )),
 
-    expression2: $ => seq(
+    expression2: $ => prec.right(1, seq(
       $.expression3,
       repeat(seq(
         $.operator,
         $.expression3
       )),
-    ),
+    )),
 
-    expression3: $ => seq(
+    expression3: $ => prec.right(1, seq(
       $.expression5,
       repeat(seq(
         '||',
         $.expression5
       )),
-    ),
+    )),
 
-    expression5: $ => seq(
+    expression5: $ => prec.right(1, seq(
       $.expression6,
       repeat(seq(
         '&&',
         $.expression6,
       )),
-    ),
+    )),
 
-    expression6: $ => seq(
+    expression6: $ => prec.right(1, seq(
       $.expression7,
       repeat(seq(
         '|',
         $.expression7,
       )),
-    ),
+    )),
 
-    expression7: $ => seq(
+    expression7: $ => prec.right(1, seq(
       $.expression8,
       repeat(seq(
         '^',
         $.expression8,
       )),
-    ),
+    )),
 
-    expression8: $ => seq(
+    expression8: $ => prec.right(1, seq(
       $.expression9,
       repeat(seq(
         '&',
         $.expression9,
       )),
-    ),
+    )),
 
     expression9: $ => choice(
-      seq(
+      prec.right(1, seq(
         $.expression10,
         repeat(seq(
           '==',
           $.expression10,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression10,
         repeat(seq(
           '!=',
           $.expression10,
         ))
-      ),
+      )),
     ),
 
     expression10: $ => choice(
-      seq(
+      prec.right(1, seq(
         $.expression11,
         repeat(seq(
           '<',
          $.expression11,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression11,
         repeat(seq(
           '<=',
           $.expression11,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression11,
         repeat(seq(
           '>',
           $.expression11,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression11,
         repeat(seq(
           '>=',
           $.expression11,
         ))
-      ),
+      )),
     ),
 
     expression11: $ => choice(
-      seq(
+      prec.right(1, seq(
         $.expression12,
         repeat(seq(
           '<<',
           $.expression12,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression12,
         repeat(seq(
           '>>',
           $.expression12,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression12,
         repeat(seq(
           '>>>',
           $.expression12,
         ))
-      ),
+      )),
     ),
 
     expression12: $ => choice(
-      seq(
+      prec.right(1, seq(
         $.expression13,
         repeat(seq(
           '+',
           $.expression13,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression13,
         repeat(seq(
           '-',
           $.expression13,
         ))
-      ),
+      )),
     ),
 
     expression13: $ => choice(
-      seq(
+      prec.right(1, seq(
         $.expression15,
         repeat(seq(
           '*',
           $.expression15,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression15,
         repeat(seq(
           '/',
           $.expression15,
         ))
-      ),
-      seq(
+      )),
+      prec.right(1, seq(
         $.expression15,
         repeat(seq(
           '%',
           $.expression15,
         ))
-      ),
+      )),
     ),
 
     expression15: $ => choice(
-      seq(
+      prec.right(1, seq(
         $.operator,
         $.expression15
-      ),
+      )),
       $.expression16,
     ),
 
-    expression16: $ => seq(
+    expression16: $ => prec.right(1, seq(
       $.expression17,
       repeat(choice(
         seq('.', $.identifier, $.arg_list),
@@ -761,7 +780,7 @@ module.exports = grammar({
         seq('isKindOf', $.type),
         seq('[', $.expression, repeat(seq(',', $.expression)), ']'),
       ))
-    ),
+    )),
 
     expression17: $ => choice(
       seq('(', $.expression, ')'),
@@ -776,7 +795,7 @@ module.exports = grammar({
       $.string,
       $.nameless_function,
       $.identifier,
-      seq($.identifier, $.arg_list),
+      prec.right(1, seq($.identifier, $.arg_list)),
       seq('new', $.constructor),
       seq('alloc', $.constructor),
       seq('sizeOf', $.type),
@@ -786,7 +805,7 @@ module.exports = grammar({
       $.constant_definition,
       $.error_definition,
       $.variable_definition,
-      $.enumeration,
+      $.enum,
       $.type_definition,
       $.function_prototype,
       $.interface_definition,
@@ -797,7 +816,7 @@ module.exports = grammar({
       $.constant_definition,
       $.error_definition,
       $.variable_definition,
-      $.enumeration,
+      $.enum,
       $.type_definition,
       $.function_definition,
       $.interface_definition,

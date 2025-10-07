@@ -1,1 +1,2 @@
-func
+code file
+endCode
